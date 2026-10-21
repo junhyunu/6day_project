@@ -3,3 +3,6 @@ API_주문_시뮬레이터.html
 .claude/settings.local.json
 CLAUDE.local.md
 .env
+.env.local
+.env*.local
+.vercel

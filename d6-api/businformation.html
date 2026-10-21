@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서울 버스 도착 정보</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --text: #1d2433;
+    --muted: #667085;
+    --line: #e3e8f0;
+    --accent: #2f6fde;
+    --error-bg: #fff1f0;
+    --error-text: #b42318;
+    --soon: #d93025;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161f;
+      --card: #1b2130;
+      --text: #e8ecf4;
+      --muted: #98a2b3;
+      --line: #2c3446;
+      --accent: #7aa7ff;
+      --error-bg: #3a1d1d;
+      --error-text: #ffb4ab;
+      --soon: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  .form { display: flex; gap: 8px; }
+  .form input, .form button {
+    font: inherit; font-size: 16px; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--text); min-width: 0;
+  }
+  .form input { flex: 1; }
+  .form button { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .result { margin-top: 16px; }
+  .stop-name { font-size: 18px; font-weight: 700; }
+  .bus {
+    display: grid; grid-template-columns: 76px 1fr; gap: 10px;
+    padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  .bus:first-of-type { border-top: none; }
+  .no {
+    align-self: start; text-align: center; font-weight: 700; color: #fff;
+    border-radius: 8px; padding: 4px 6px; font-size: 15px;
+  }
+  .dir { color: var(--muted); font-size: 13px; }
+  .arr { font-size: 15px; }
+  .arr.soon { color: var(--soon); font-weight: 700; }
+  .routes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .routes button {
+    font: inherit; font-size: 14px; padding: 6px 10px; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text);
+  }
+  .stops { max-height: 420px; overflow-y: auto; margin-top: 8px; border-top: 1px solid var(--line); }
+  .stopline { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .stopline .arr { text-align: right; flex-shrink: 0; max-width: 55%; }
+  .meta { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+  .loading { color: var(--muted); margin: 0; }
+  .refresh {
+    margin-top: 10px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer;
+    border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px;
+  }
+  .error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .error button {
+    margin-top: 10px; padding: 6px 14px;
+    border: 1px solid currentColor; background: transparent; color: inherit;
+    border-radius: 8px; cursor: pointer; font: inherit;
+  }
+  .api-box { font-size: 13px; }
+  .api-box h3 { font-size: 13px; margin: 12px 0 4px; }
+  .api-box code {
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    word-break: break-all;
+    margin-bottom: 4px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🚌 서울 버스 도착 정보</h1>
+  <p class="sub">정류소 번호나 버스 번호를 넣으면 버스가 언제 오는지 보여 줘요.</p>
+
+  <section class="card">
+    <h2>🚏 정류소 번호로 찾기</h2>
+    <form class="form" id="station-form">
+      <input id="ars" type="text" inputmode="numeric" maxlength="5" placeholder="예: 01001" aria-label="정류소 번호 5자리">
+      <button type="submit">찾기</button>
+    </form>
+    <p class="hint">정류장 표지판이나 네이버·카카오맵에 있는 5자리 번호예요.</p>
+    <div class="result" id="station-card"></div>
+  </section>
+
+  <section class="card">
+    <h2>🚌 버스 번호로 찾기</h2>
+    <form class="form" id="route-form">
+      <input id="route" type="text" maxlength="10" placeholder="예: 273" aria-label="버스 번호">
+      <button type="submit">찾기</button>
+    </form>
+    <p class="hint">그 버스가 지나가는 모든 정류소의 도착 예정을 보여 줘요.</p>
+    <div class="result" id="route-card"></div>
+  </section>
+
+  <section class="card api-box">
+    <h2>🔌 이 화면이 쓰는 API</h2>
+    <p class="meta" style="margin:0">🔑 서울시 버스 API는 서비스키가 필요해요. 키는 <b>Vercel 서버에만</b> 있고,
+    이 화면은 내 서버 창구(<code style="display:inline;padding:1px 4px">/api/bus</code>)만 불러요. 그래서 아래 주소에도, 브라우저 개발자 도구에도 키가 보이지 않아요.</p>
+    <h3>정류소 번호 → 오는 버스 (정류소정보조회)</h3>
+    <code id="url-station">아직 부르지 않았어요</code>
+    <a id="link-station" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
+    <h3>버스 번호 → 노선 ID (노선정보조회)</h3>
+    <code id="url-route">아직 부르지 않았어요</code>
+    <a id="link-route" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
+    <h3>노선 ID → 정류소별 도착 예정 (버스도착정보조회)</h3>
+    <code id="url-arrivals">아직 부르지 않았어요</code>
+    <a id="link-arrivals" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
+    <p class="meta">데이터 출처: 서울특별시 버스 정보 (<a href="https://www.data.go.kr/" target="_blank" rel="noopener">공공데이터포털</a>)<br>
+    도착 시간은 버스 위치로 계산한 <b>예상값</b>이라 실제와 다를 수 있어요. 같은 주문은 서버가 15초 동안 같은 답을 줘요.</p>
+  </section>
+</main>
+
+<script>
+  // 🔌 API 주소는 여기 한 곳에만 있어요. 서울시 버스 API를 직접 부르지 않고, 키를 가진 내 Vercel 서버 창구를 불러요.
+  const API = {
+    bus: "/api/bus", // 🔌 내 서버 창구 → 서울시 버스 API (뒤에 ?op=station&arsId=… 처럼 붙여요)
+  };
+
+  // 서울 버스 노선 유형 → 이름과 색
+  const ROUTE_TYPES = {
+    1: ["공항", "#00a0e9"], 2: ["마을", "#53b332"], 3: ["간선", "#3d5bab"], 4: ["지선", "#5bb025"],
+    5: ["순환", "#f2b70a"], 6: ["광역", "#e60012"], 7: ["인천", "#8b5e3c"], 8: ["경기", "#8b5e3c"],
+    9: ["폐지", "#888888"], 0: ["공용", "#888888"],
+  };
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  function busUrl(params) {
+    return API.bus + "?" + new URLSearchParams(params).toString();
+  }
+
+  function showUrl(name, url) {
+    const full = new URL(url, location.href).href;
+    document.getElementById(`url-${name}`).textContent = full;
+    const link = document.getElementById(`link-${name}`);
+    link.href = full;
+    link.hidden = false;
+  }
+
+  // 서버 창구를 부르고, 서울시 API의 결과 머리말(msgHeader)까지 확인해요
+  async function getBus(params) {
+    let res;
+    try {
+      res = await fetch(busUrl(params)); // 🔌 API 호출 (모든 카드가 이 한 줄로 불러요)
+    } catch {
+      throw new Error("서버에 연결하지 못했어요");
+    }
+    let data;
+    try { data = await res.json(); } catch { data = null; }
+    if (!res.ok) throw new Error((data && data.error) || `HTTP ${res.status}`);
+    if (!data) throw new Error("응답을 읽지 못했어요");
+    const h = data.msgHeader || {};
+    if (h.headerCd && h.headerCd !== "0" && h.headerCd !== "4") throw new Error(h.headerMsg || `오류 코드 ${h.headerCd}`);
+    const list = data.msgBody && data.msgBody.itemList;
+    return Array.isArray(list) ? list : list ? [list] : [];
+  }
+
+  // 이 화면은 Vercel 주소에서만 서버 창구가 있어요
+  function whereHint() {
+    if (location.protocol === "file:") return "이 파일을 더블클릭으로 열었어요. 키가 Vercel 서버에 있어서 Vercel 주소(…vercel.app)로 열어야 동작해요.";
+    if (location.hostname.endsWith("github.io")) return "GitHub Pages에는 서버가 없어요. Vercel 주소(…vercel.app)로 열어 주세요.";
+    return "인터넷 연결을 확인하거나, Vercel 환경 변수 SEOUL_BUS_KEY 와 공공데이터포털 활용신청을 확인해 주세요.";
+  }
+
+  function errorBox(el, title, err, retry) {
+    el.innerHTML = `
+      <div class="error">
+        <strong>😢 ${title}</strong><br>
+        ${esc(whereHint())}<br>
+        <small>(${esc(err.message)})</small><br>
+        <button type="button" onclick="${retry}">다시 시도</button>
+      </div>
+    `;
+  }
+
+  function isSoon(msg) {
+    return /곧 도착|^[0-2]분|^\d+초/.test(msg || "");
+  }
+
+  function arr(msg) {
+    return `<span class="arr ${isSoon(msg) ? "soon" : ""}">${esc(msg || "정보 없음")}</span>`;
+  }
+
+  function nowText() {
+    return new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  // ── 카드 1: 정류소 번호 → 오는 버스 ──
+  let lastArs = "";
+  async function loadStation(arsId = lastArs) {
+    if (!arsId) return;
+    lastArs = arsId;
+    const el = document.getElementById("station-card");
+    const params = { op: "station", arsId };
+    showUrl("station", busUrl(params));
+    el.innerHTML = '<p class="loading">버스 도착 정보를 불러오는 중이에요… ⏳</p>';
+    try {
+      const list = await getBus(params);
+      if (list.length === 0) {
+        el.innerHTML = `<p class="hint">🔍 ${esc(arsId)}번 정류소에 오는 버스 정보가 없어요. 번호를 다시 확인해 주세요.</p>`;
+        return;
+      }
+      el.innerHTML = `
+        <div class="stop-name">🚏 ${esc(list[0].stNm)} <small class="dir">(${esc(arsId)})</small></div>
+        ${list.map(b => {
+          const [typeName, color] = ROUTE_TYPES[b.routeType] || ["", "#888888"];
+          return `
+            <div class="bus">
+              <div class="no" style="background:${color}" title="${typeName}">${esc(b.rtNm)}</div>
+              <div>
+                <div class="dir">${b.adirection ? `${esc(b.adirection)} 방면` : ""}${typeName ? ` · ${typeName}` : ""}</div>
+                <div>${arr(b.arrmsg1)}</div>
+                <div class="dir">다음 버스: ${esc(b.arrmsg2 || "정보 없음")}</div>
+              </div>
+            </div>`;
+        }).join("")}
+        <p class="meta">불러온 시각: ${nowText()} · 도착 시간은 예상값이에요.</p>
+        <button type="button" class="refresh" onclick="loadStation()">🔄 새로고침</button>
+      `;
+    } catch (err) {
+      errorBox(el, "버스 도착 정보를 불러오지 못했어요.", err, "loadStation()");
+    }
+  }
+
+  // ── 카드 2: 버스 번호 → 노선 ID → 노선 전체 도착 예정 ──
+  let lastRoute = "";
+  async function searchRoute(name = lastRoute) {
+    if (!name) return;
+    lastRoute = name;
+    const el = document.getElementById("route-card");
+    const params = { op: "route", strSrch: name };
+    showUrl("route", busUrl(params));
+    el.innerHTML = '<p class="loading">버스 노선을 찾는 중이에요… ⏳</p>';
+    try {
+      const routes = await getBus(params);
+      if (routes.length === 0) {
+        el.innerHTML = `<p class="hint">🔍 "${esc(name)}"번 버스를 찾지 못했어요.</p>`;
+        return;
+      }
+      const exact = routes.find(r => r.busRouteNm === name);
+      if (exact) {
+        loadArrivals(exact.busRouteId, exact.busRouteNm);
+        return;
+      }
+      el.innerHTML = `
+        <p class="hint">"${esc(name)}"(이)가 들어간 버스가 여러 개예요. 하나를 골라 주세요.</p>
+        <div class="routes">${routes.slice(0, 30).map(r =>
+          `<button type="button" onclick="loadArrivals('${esc(r.busRouteId)}', '${esc(r.busRouteNm)}')">${esc(r.busRouteNm)}</button>`).join("")}</div>
+      `;
+    } catch (err) {
+      errorBox(el, "버스 노선을 찾지 못했어요.", err, "searchRoute()");
+    }
+  }
+
+  let lastArrivals = null;
+  async function loadArrivals(busRouteId = lastArrivals && lastArrivals.id, routeName = lastArrivals && lastArrivals.name) {
+    if (!busRouteId) return;
+    lastArrivals = { id: busRouteId, name: routeName };
+    const el = document.getElementById("route-card");
+    const params = { op: "arrivals", busRouteId };
+    showUrl("arrivals", busUrl(params));
+    el.innerHTML = `<p class="loading">${esc(routeName)}번 버스의 도착 예정을 불러오는 중이에요… ⏳</p>`;
+    try {
+      const stops = await getBus(params);
+      if (stops.length === 0) {
+        el.innerHTML = `<p class="hint">${esc(routeName)}번 버스의 도착 정보가 없어요. 운행 시간이 아닐 수 있어요.</p>`;
+        return;
+      }
+      el.innerHTML = `
+        <div class="stop-name">🚌 ${esc(routeName)}번 <small class="dir">정류소 ${stops.length}곳</small></div>
+        <div class="stops">${stops.map(s => `
+          <div class="stopline"><span>${esc(s.stNm)}</span>${arr(s.arrmsg1)}</div>`).join("")}
+        </div>
+        <p class="meta">불러온 시각: ${nowText()} · 빨간 글씨는 곧 오는 버스예요.</p>
+        <button type="button" class="refresh" onclick="loadArrivals()">🔄 새로고침</button>
+      `;
+    } catch (err) {
+      errorBox(el, "도착 예정을 불러오지 못했어요.", err, "loadArrivals()");
+    }
+  }
+
+  document.getElementById("station-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = document.getElementById("ars").value.trim();
+    const el = document.getElementById("station-card");
+    if (!/^\d{5}$/.test(v)) { el.innerHTML = '<p class="hint">🔢 정류소 번호는 숫자 5자리예요. (예: 01001)</p>'; return; }
+    loadStation(v);
+  });
+
+  document.getElementById("route-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = document.getElementById("route").value.trim();
+    if (v) searchRoute(v);
+  });
+</script>
+</body>
+</html>
