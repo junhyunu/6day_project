@@ -5,16 +5,17 @@
 //          /api/bus?op=route&strSrch=273
 //          /api/bus?op=arrivals&busRouteId=100100118
 
-const BASE = "https://ws.bus.go.kr/api/rest";
+// https 주소는 서버에서 부르면 응답이 오지 않아요(시간 초과). 공식 문서 주소인 http를 써요.
+const BASE = "http://ws.bus.go.kr/api/rest";
 
 // 허락한 주문만 받아요. 아무 주소나 대신 불러 주는 창구가 되지 않게 하려고요.
 const OPS = {
   // 정류소정보조회 서비스: 정류소 번호(5자리) → 그 정류소에 오는 버스들
-  station: { path: "/stationinfo/getStationByUid", param: "arsId", pattern: /^\d{5}$/ },
+  station: { path: "/stationinfo/getStationByUid", param: "arsId", pattern: /^\d{5}$/, service: "서울특별시_정류소정보조회 서비스" },
   // 노선정보조회 서비스: 버스 번호 → 노선 ID
-  route: { path: "/busRouteInfo/getBusRouteList", param: "strSrch", pattern: /^[0-9A-Za-z가-힣-]{1,10}$/ },
+  route: { path: "/busRouteInfo/getBusRouteList", param: "strSrch", pattern: /^[0-9A-Za-z가-힣-]{1,10}$/, service: "서울특별시_노선정보조회 서비스" },
   // 버스도착정보조회 서비스: 노선 ID → 그 노선 모든 정류소의 도착 예정
-  arrivals: { path: "/arrive/getArrInfoByRouteAll", param: "busRouteId", pattern: /^\d{9}$/ },
+  arrivals: { path: "/arrive/getArrInfoByRouteAll", param: "busRouteId", pattern: /^\d{9}$/, service: "서울특별시_버스도착정보조회 서비스" },
 };
 
 function json(body, status) {
@@ -60,6 +61,10 @@ export async function GET(request) {
 
   if (text.trimStart().startsWith("<")) {
     return json({ error: `서울시 버스 API 오류: ${xmlMessage(text)}` }, 502);
+  }
+  // 키가 이 서비스에 등록되지 않았으면, 어떤 서비스를 활용신청해야 하는지 알려 줘요.
+  if (res.status === 401 || res.status === 403) {
+    return json({ error: `키가 '${op.service}'에 등록되지 않았어요. 공공데이터포털에서 이 서비스를 활용신청해 주세요. (신청 직후면 잠시 뒤 다시)` }, res.status);
   }
   return new Response(text, {
     status: res.status,
