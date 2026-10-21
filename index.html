@@ -88,11 +88,23 @@
       <span><span class="name">도감보이 포켓몬 도감</span><br>
       <span class="desc">게임보이 모양 한국어 도감 · PokeAPI</span></span>
     </a>
-    <a class="item" id="bus-link" href="d6-api/businformation.html">
+    <a class="item server" href="d6-api/businformation.html">
       <span class="emoji">🚌</span>
       <span><span class="name">서울 버스 도착 정보</span><br>
       <span class="desc">정류소·버스 번호로 도착 예정 · 서울시 버스 API(키는 서버에 보관)</span>
-      <span class="note" id="bus-note" hidden><br>↗ 서버가 필요해서 Vercel 주소로 열어요.</span></span>
+      <span class="note" hidden><br>↗ 서버가 필요해서 Vercel 주소로 열어요.</span></span>
+    </a>
+    <a class="item server" href="d6-api/moodboard.html">
+      <span class="emoji">🖼️</span>
+      <span><span class="name">무드보드</span><br>
+      <span class="desc">검색어로 사진 무드보드 만들기 · Unsplash(키는 서버에 보관)</span>
+      <span class="note" hidden><br>↗ 서버가 필요해서 Vercel 주소로 열어요.</span></span>
+    </a>
+    <a class="item server" href="d6-api/UXwriting.html">
+      <span class="emoji">✍️</span>
+      <span><span class="name">Wordsmith UX 라이팅</span><br>
+      <span class="desc">상황·톤을 말하면 버튼·에러·빈 화면 문구를 여러 안으로 · Google Gemini(키는 서버에 보관)</span>
+      <span class="note" hidden><br>↗ 서버가 필요해서 Vercel 주소로 열어요.</span></span>
     </a>
   </nav>
 
@@ -100,10 +112,12 @@
 </main>
 
 <script>
-  // 버스 화면은 Vercel 서버 함수가 있어야 해요. GitHub Pages나 더블클릭으로 열었으면 Vercel 주소로 보내요.
+  // 버스·무드보드·UX 라이팅 화면은 Vercel 서버 함수가 있어야 해요. GitHub Pages나 더블클릭으로 열었으면 Vercel 주소로 보내요.
   if (location.protocol === "file:" || location.hostname.endsWith("github.io")) {
-    document.getElementById("bus-link").href = "https://6day-project.vercel.app/d6-api/businformation.html";
-    document.getElementById("bus-note").hidden = false;
+    document.querySelectorAll(".item.server").forEach((a) => {
+      a.href = "https://6day-project.vercel.app/" + a.getAttribute("href");
+      a.querySelector(".note").hidden = false;
+    });
   }
 </script>
 </body>
