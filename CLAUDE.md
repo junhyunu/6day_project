@@ -11,6 +11,7 @@ D6 수업("무료 API로 나만의 서비스 만들기") 자료 폴더예요. �
 - `d6-api/` — 미션 결과물(`weather.html` ★, `rate.html` ★, `city.html` ★★, `morning.html` ★★★). 새 화면을 만들 때 이 파일들의 CSS 토큰·`.card`·`.error`·`.api-box` 구조를 그대로 따라 해요.
 - `.claude/skills/api-check/` — `/api-check <파일>`: 규칙대로 검사만 하고 고치지 않는 스킬(fork로 실행).
 - `api/bus.js` + `d6-api/businformation.html` — 키가 필요한 API(서울 버스)의 예외. 화면은 같은 사이트의 `/api/bus`만 부르고, Vercel 서버 함수가 환경 변수 `SEOUL_BUS_KEY`로 서울시 API를 대신 불러요. Vercel에서만 동작해요(GitHub Pages·더블클릭은 안내 문구만 나옴). 키는 코드·커밋·대화 어디에도 넣지 않고 Vercel 대시보드 환경 변수에만 둬요. 새 주문을 받으려면 `OPS` 허용 목록에 추가해요.
+- 같은 방식(Vercel 서버 함수 + 환경 변수)인 화면이 두 개 더 있어요. `api/unsplash.js` + `d6-api/moodboard.html`(환경 변수 `UNSPLASH_ACCESS_KEY`, GET `?query=&page=`), `api/uxwriting.js` + `d6-api/UXwriting.html`(환경 변수 `GEMINI_API_KEY`, 선택 `GEMINI_MODEL` 기본 `gemini-3.5-flash-lite` — `gemini-3.8-flash`는 무료 등급이 하루 20번뿐). UX 라이팅 주문서(프롬프트)와 JSON 모양은 서버 함수 안에 있고, 화면은 상황·유형·톤만 POST로 보내요. 다른 사이트에서 온 요청(Origin 다름)은 막아요.
 
 배포: GitHub `junhyunu/6day_project`(Public) → GitHub Pages(정적 화면)와 Vercel(서버 함수 포함)에 함께 연결해서 써요. push하면 둘 다 다시 배포돼요.
 

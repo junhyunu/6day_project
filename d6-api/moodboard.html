@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>무드보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  /* 디자인 시스템: Intercom (styles.refero.design) — 따뜻한 무채색, 300 굵기 타이틀, 4px 모서리, 그림자·그라데이션 없음 */
+  :root {
+    --canvas: #faf9f6;      /* Canvas Cream: 페이지 바탕 */
+    --linen: #f1eee9;       /* Linen: 보조 면 */
+    --white: #ffffff;
+    --ink: #111111;         /* 본문·제목 */
+    --carbon: #000000;      /* 채운 버튼 */
+    --iron: #414141;        /* 보조 글자 */
+    --graphite: #585858;
+    --smoke: #888888;       /* 흐린 라벨 */
+    --hairline: #dedbd6;    /* 테두리 */
+    --violet: #0007cb;      /* 강조색: 화면에 한두 번만 */
+    --error-bg: #f1eee9;
+    --error-text: #8a1c12;
+    --radius: 4px;
+    --font-sans: "Inter", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: -0.16px;
+    font-feature-settings: "ss01" on, "tnum" on;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 96px 48px 64px; }
+  .label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--smoke);
+    margin: 0 0 24px;
+  }
+  .label b { color: var(--violet); font-weight: 400; }
+
+  /* 히어로: 큰 타이틀 + 옆 설명 */
+  .hero { display: flex; flex-direction: column; gap: 24px; }
+  h1 {
+    font-weight: 300;
+    font-size: 80px;
+    line-height: 0.95;
+    letter-spacing: -2.4px;
+    margin: 0;
+    max-width: 760px;
+    word-break: keep-all;
+  }
+  .hero p {
+    max-width: 420px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--iron);
+    word-break: keep-all;
+  }
+
+  /* 검색창 */
+  .search { display: flex; gap: 8px; margin-top: 48px; max-width: 640px; }
+  .search input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 16px;
+    padding: 13px 16px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--white);
+    color: var(--ink);
+  }
+  .search input::placeholder { color: var(--smoke); }
+  .search input:focus { outline: none; border-color: var(--ink); }
+  .btn {
+    font: inherit;
+    font-size: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--carbon); color: var(--white); border: 1px solid var(--carbon); }
+  .btn-outline { background: var(--white); color: var(--ink); border: 1px solid var(--ink); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    padding: 6px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--graphite);
+    cursor: pointer;
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* 무드보드: 크기가 다른 사진들이 흩어진 줄 */
+  .card { margin-top: 64px; }
+  .board-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .board-head .label { margin: 0; }
+  .board {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 48px 40px;
+  }
+  .tile {
+    position: relative;
+    margin: 0;
+    flex: none;
+    border-radius: var(--radius);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: rise .5s ease forwards;
+  }
+  .tile a { display: block; width: 100%; height: 100%; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile figcaption {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 6px 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--white);
+    background: rgba(17, 17, 17, .6);
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .tile:hover figcaption, .tile:focus-within figcaption { opacity: 1; }
+  .tile figcaption a { color: inherit; display: inline; }
+  .tile.broken { background: var(--linen) !important; }
+  .tile.broken::after {
+    content: "사진을 못 불러왔어요";
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-size: 12px; color: var(--smoke);
+  }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .tile { animation: none; opacity: 1; transform: none; } }
+
+  .more { margin-top: 48px; text-align: center; }
+  .loading { color: var(--smoke); font-size: 14px; padding: 48px 0; }
+  .error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: var(--radius);
+    padding: 24px;
+    font-size: 14px;
+    word-break: keep-all;
+  }
+  .error p { margin: 0 0 4px; }
+  .error code { font-family: var(--font-mono); font-size: 13px; }
+  .error button { margin-top: 12px; }
+
+  /* 🔌 API 상자 */
+  .api-box {
+    margin-top: 96px;
+    background: var(--linen);
+    border-radius: var(--radius);
+    padding: 32px;
+    font-size: 14px;
+  }
+  .api-box h2 { font-size: 20px; font-weight: 300; letter-spacing: -0.2px; margin: 0 0 16px; }
+  .api-box code {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--white);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px;
+    word-break: break-all;
+    margin-bottom: 8px;
+  }
+  .meta { color: var(--graphite); font-size: 14px; margin: 12px 0 0; }
+  a { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    main { padding: 64px 16px 48px; }
+    .hero { flex-direction: column; gap: 16px; }
+    h1 { font-size: 54px; letter-spacing: -1.62px; }
+    .board { gap: 24px 16px; justify-content: center; }
+  }
+  @media (max-width: 480px) {
+    h1 { font-size: 40px; letter-spacing: -1.2px; line-height: 1.05; }
+    .search { flex-direction: column; }
+    .api-box { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="label">Moodboard · <b>Unsplash</b></p>
+
+  <section class="hero">
+    <h1>단어 하나로 만드는 나만의 무드보드</h1>
+    <p>떠오르는 분위기를 검색어로 적으면 어울리는 사진을 모아 보여 줘요. 사진에 마우스를 올리면 찍은 사람이 보여요.</p>
+  </section>
+
+  <form class="search" id="search-form">
+    <input id="q" type="search" placeholder="예: 바다, 노을, cozy cafe, minimal interior" autocomplete="off" aria-label="검색어">
+    <button class="btn btn-primary" type="submit">무드보드 만들기</button>
+  </form>
+  <div class="chips" id="chips"></div>
+
+  <section class="card" id="board-card">
+    <div class="board-head">
+      <p class="label" id="board-title">사진</p>
+      <p class="label" id="quota" hidden></p><!-- 남은 호출 수: 화면에서는 숨김 (hidden 을 지우면 다시 보여요) -->
+    </div>
+    <div id="board-body"><p class="loading">사진을 불러오는 중…</p></div>
+    <div class="more" id="more" hidden>
+      <button class="btn btn-outline" id="more-btn" type="button">사진 더 보기</button>
+    </div>
+  </section>
+
+  <section class="api-box">
+    <h2>🔌 이 화면이 쓰는 API</h2>
+    <code id="api-url">아직 부르지 않았어요</code>
+    <a id="api-link" href="#" target="_blank" rel="noopener">새 탭에서 원본 JSON 보기 ↗</a>
+    <p class="meta">이 주소는 내 Vercel 서버 창구예요. 서버가 키를 붙여서 Unsplash를 대신 불러 주기 때문에 주소에도 화면에도 키가 없어요.</p>
+    <p class="meta">호출 제한: 데모 키는 시간당 50번이에요. 같은 검색어는 1시간 동안 저장해 둔 결과를 다시 써서 호출하지 않아요.</p>
+    <p class="meta">사진 출처: <a href="https://unsplash.com/?utm_source=moodboard_d6&utm_medium=referral" target="_blank" rel="noopener">Unsplash</a> · 각 사진의 작가 이름은 사진 위에 표시돼요.</p>
+  </section>
+</main>
+
+<!-- 🔑 키는 Vercel 서버(환경 변수 UNSPLASH_ACCESS_KEY)에만 있어요. 이 화면에는 키가 없어요. -->
+<script>
+  // 🔌 API 주소는 여기 한 곳에만 있어요. query= 뒤의 검색어를 바꾸면 다른 사진이 와요.
+  const API = {
+    search: "/api/unsplash", // 🔌 내 서버 창구(api/unsplash.js) → Unsplash 사진 검색 (?query=검색어&page=1)
+  };
+  const CACHE_MS = 60 * 60 * 1000;   // 같은 검색어는 1시간 동안 저장한 결과를 다시 써요
+  const UTM = "utm_source=moodboard_d6&utm_medium=referral"; // Unsplash 출처 링크 규칙
+
+  const SUGGEST = ["바다", "노을", "숲", "cozy cafe", "minimal interior", "film camera", "flower"];
+  // 사진 높이를 S·L·M 식으로 섞어서 크기가 다른 무드보드를 만들어요
+  const HEIGHTS = [130, 230, 170, 200, 120, 250, 160];
+
+  const $ = (id) => document.getElementById(id);
+  const state = { query: "", page: 1, totalPages: 0, index: 0 };
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // --- 저장해 둔 결과 (브라우저가 막으면 그냥 매번 불러요) ---
+  function readCache(k) {
+    try {
+      const hit = JSON.parse(localStorage.getItem("mood:" + k));
+      if (hit && Date.now() - hit.t < CACHE_MS) return hit;
+    } catch (e) {}
+    return null;
+  }
+  function writeCache(k, data, remaining) {
+    try { localStorage.setItem("mood:" + k, JSON.stringify({ t: Date.now(), data, remaining })); } catch (e) {}
+  }
+
+  function showQuota(remaining, cached) {
+    if (remaining == null || remaining === "") { $("quota").textContent = cached ? "저장한 결과" : ""; return; }
+    $("quota").textContent = (cached ? "저장한 결과 · " : "") + `이번 시간 남은 호출 ${remaining}번`;
+  }
+
+  function showError(html, retry) {
+    $("more").hidden = true;
+    $("board-body").innerHTML = `<div class="error">${html}${retry ? '<button class="btn btn-outline" type="button" id="retry">다시 시도</button>' : ""}</div>`;
+    if (retry) $("retry").onclick = retry;
+  }
+
+  function tileSize(photo) {
+    const small = window.innerWidth < 860 ? 0.6 : 1;
+    const h = Math.round(HEIGHTS[state.index % HEIGHTS.length] * small);
+    const ratio = photo.width && photo.height ? photo.width / photo.height : 1;
+    const w = Math.round(Math.min(h * ratio, h * 1.6, 360 * small));
+    return { w, h };
+  }
+
+  function renderTiles(photos, append) {
+    const board = append ? $("board-body").querySelector(".board") : document.createElement("div");
+    if (!append) { board.className = "board"; $("board-body").innerHTML = ""; $("board-body").appendChild(board); state.index = 0; }
+    photos.forEach((p, i) => {
+      const { w, h } = tileSize(p);
+      state.index++;
+      const user = p.user || {};
+      const fig = document.createElement("figure");
+      fig.className = "tile";
+      fig.style.cssText = `width:${w}px;height:${h}px;background:${p.color || "#f1eee9"};animation-delay:${i * 40}ms`;
+      fig.innerHTML = `
+        <a href="${esc(p.links.html)}?${UTM}" target="_blank" rel="noopener">
+          <img src="${esc(p.urls.small)}" alt="${esc(p.alt_description || p.description || state.query)}" loading="lazy">
+        </a>
+        <figcaption>Photo by <a href="${esc(user.links && user.links.html)}?${UTM}" target="_blank" rel="noopener">${esc(user.name || "Unknown")}</a> on <a href="https://unsplash.com/?${UTM}" target="_blank" rel="noopener">Unsplash</a></figcaption>`;
+      fig.querySelector("img").onerror = () => fig.classList.add("broken"); // 사진 서버(images.unsplash.com) 실패도 따로 처리
+      board.appendChild(fig);
+    });
+  }
+
+  function setApiBox(url) {
+    $("api-url").textContent = url;
+    $("api-link").href = url; // 이제 키 없이 GET 주소라서, 새 탭에서 그대로 열려요
+  }
+
+  async function search(query, page = 1) {
+    query = query.trim();
+    if (!query) return;
+    // 키가 Vercel 서버에 있어서, 서버가 없는 곳에서 열면 안내만 보여 줘요
+    if (location.protocol === "file:" || location.hostname.endsWith("github.io")) {
+      showError(`<p><b>여기서는 사진을 불러올 수 없어요.</b></p>
+        <p>${location.protocol === "file:" ? "이 파일을 더블클릭으로 열었어요." : "GitHub Pages에는 서버가 없어요."} 키가 Vercel 서버에 있어서 Vercel 주소(…vercel.app)로 열어야 동작해요.</p>`);
+      return;
+    }
+    state.query = query;
+    state.page = page;
+    $("q").value = query;
+    $("board-title").textContent = `“${query}” 무드보드`;
+
+    const url = new URL(`${API.search}?query=${encodeURIComponent(query)}&page=${page}`, location.href).href;
+    const cacheKey = `${query.toLowerCase()}|${page}`;
+    const hit = readCache(cacheKey);
+    if (hit) { show(hit.data, url, page, hit.remaining, true); return; }
+
+    if (page === 1) $("board-body").innerHTML = '<p class="loading">사진을 불러오는 중…</p>';
+    $("more-btn").disabled = true;
+    $("more-btn").textContent = "불러오는 중…";
+    try {
+      const res = await fetch(url); // 🔌 API 호출 (키는 서버가 붙여요)
+      const remaining = res.headers.get("X-RateLimit-Remaining");
+      if (res.status === 401) throw { msg: "<p><b>서버의 키가 맞지 않아요 (401).</b></p><p>Vercel 환경 변수 <code>UNSPLASH_ACCESS_KEY</code>를 확인해요. Secret Key가 아니라 Access Key예요.</p>" };
+      if (res.status === 500) throw { msg: "<p><b>서버에 키가 아직 없어요.</b></p><p>Vercel 대시보드 → Settings → Environment Variables에 <code>UNSPLASH_ACCESS_KEY</code>를 넣고 다시 배포해요.</p>" };
+      if (res.status === 403 || res.status === 429 || remaining === "0" && !res.ok) {
+        showQuota(0);
+        throw { msg: "<p><b>이번 시간 호출 횟수를 다 썼어요.</b></p><p>데모 키는 시간당 50번이에요. 조금 뒤에 다시 시도하거나, 이미 검색한 단어를 눌러 저장한 결과를 봐요.</p>" };
+      }
+      if (!res.ok) throw { msg: `<p><b>불러오기 실패 (${res.status})</b></p><p>Unsplash 서버가 답하지 않았어요.</p>` };
+      const data = await res.json();
+      writeCache(cacheKey, data, remaining);
+      show(data, url, page, remaining, false);
+    } catch (e) {
+      if (page > 1) { // 이미 보이는 사진은 두고, 버튼 자리에만 알려요
+        state.page = page - 1;
+        $("more-btn").disabled = false;
+        $("more-btn").textContent = "더 보기 실패 · 다시 시도";
+        return;
+      }
+      showError(e.msg || "<p><b>불러오기 실패</b></p><p>인터넷 연결을 확인하고 다시 시도해요.</p>", () => search(query, page));
+    }
+  }
+
+  function show(data, url, page, remaining, cached) {
+    setApiBox(url);
+    showQuota(remaining, cached);
+    state.totalPages = data.total_pages || 0;
+    if (!data.results || data.results.length === 0) {
+      showError(`<p><b>“${esc(state.query)}” 사진을 찾지 못했어요.</b></p><p>영어 단어로도 검색해 봐요. 예: sea, sunset, forest</p>`);
+      return;
+    }
+    renderTiles(data.results, page > 1);
+    $("more").hidden = page >= state.totalPages;
+    $("more-btn").disabled = false;
+    $("more-btn").textContent = "사진 더 보기";
+  }
+
+  // --- 화면 연결 ---
+  $("chips").innerHTML = SUGGEST.map((w) => `<button class="chip" type="button">${esc(w)}</button>`).join("");
+  $("chips").addEventListener("click", (e) => { if (e.target.matches(".chip")) search(e.target.textContent); });
+  $("search-form").addEventListener("submit", (e) => { e.preventDefault(); search($("q").value); });
+  $("more-btn").addEventListener("click", () => search(state.query, state.page + 1));
+
+  search("노을"); // 첫 화면 예시 (저장된 결과가 있으면 호출하지 않아요)
+</script>
+</body>
+</html>
