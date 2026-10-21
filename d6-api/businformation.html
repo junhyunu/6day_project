@@ -97,17 +97,6 @@
     border: 1px solid currentColor; background: transparent; color: inherit;
     border-radius: 8px; cursor: pointer; font: inherit;
   }
-  .api-box { font-size: 13px; }
-  .api-box h3 { font-size: 13px; margin: 12px 0 4px; }
-  .api-box code {
-    display: block;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 10px;
-    word-break: break-all;
-    margin-bottom: 4px;
-  }
   a { color: var(--accent); }
 </style>
 </head>
@@ -136,22 +125,8 @@
     <div class="result" id="route-card"></div>
   </section>
 
-  <section class="card api-box">
-    <h2>🔌 이 화면이 쓰는 API</h2>
-    <p class="meta" style="margin:0">🔑 서울시 버스 API는 서비스키가 필요해요. 키는 <b>Vercel 서버에만</b> 있고,
-    이 화면은 내 서버 창구(<code style="display:inline;padding:1px 4px">/api/bus</code>)만 불러요. 그래서 아래 주소에도, 브라우저 개발자 도구에도 키가 보이지 않아요.</p>
-    <h3>정류소 번호 → 오는 버스 (정류소정보조회)</h3>
-    <code id="url-station">아직 부르지 않았어요</code>
-    <a id="link-station" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
-    <h3>버스 번호 → 노선 ID (노선정보조회)</h3>
-    <code id="url-route">아직 부르지 않았어요</code>
-    <a id="link-route" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
-    <h3>노선 ID → 정류소별 도착 예정 (버스도착정보조회)</h3>
-    <code id="url-arrivals">아직 부르지 않았어요</code>
-    <a id="link-arrivals" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
-    <p class="meta">데이터 출처: 서울특별시 버스 정보 (<a href="https://www.data.go.kr/" target="_blank" rel="noopener">공공데이터포털</a>)<br>
-    도착 시간은 버스 위치로 계산한 <b>예상값</b>이라 실제와 다를 수 있어요. 같은 주문은 서버가 15초 동안 같은 답을 줘요.</p>
-  </section>
+  <p class="meta">데이터 출처: 서울특별시 버스 정보 (<a href="https://www.data.go.kr/" target="_blank" rel="noopener">공공데이터포털</a>)<br>
+  도착 시간은 버스 위치로 계산한 <b>예상값</b>이라 실제와 다를 수 있어요.</p>
 </main>
 
 <script>
@@ -173,14 +148,6 @@
 
   function busUrl(params) {
     return API.bus + "?" + new URLSearchParams(params).toString();
-  }
-
-  function showUrl(name, url) {
-    const full = new URL(url, location.href).href;
-    document.getElementById(`url-${name}`).textContent = full;
-    const link = document.getElementById(`link-${name}`);
-    link.href = full;
-    link.hidden = false;
   }
 
   // 서버 창구를 부르고, 서울시 API의 결과 머리말(msgHeader)까지 확인해요
@@ -238,7 +205,6 @@
     lastArs = arsId;
     const el = document.getElementById("station-card");
     const params = { op: "station", arsId };
-    showUrl("station", busUrl(params));
     el.innerHTML = '<p class="loading">버스 도착 정보를 불러오는 중이에요… ⏳</p>';
     try {
       const list = await getBus(params);
@@ -275,7 +241,6 @@
     lastRoute = name;
     const el = document.getElementById("route-card");
     const params = { op: "route", strSrch: name };
-    showUrl("route", busUrl(params));
     el.innerHTML = '<p class="loading">버스 노선을 찾는 중이에요… ⏳</p>';
     try {
       const routes = await getBus(params);
@@ -304,7 +269,6 @@
     lastArrivals = { id: busRouteId, name: routeName };
     const el = document.getElementById("route-card");
     const params = { op: "arrivals", busRouteId };
-    showUrl("arrivals", busUrl(params));
     el.innerHTML = `<p class="loading">${esc(routeName)}번 버스의 도착 예정을 불러오는 중이에요… ⏳</p>`;
     try {
       const stops = await getBus(params);
