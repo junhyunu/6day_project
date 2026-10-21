@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리 동네 날씨</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --text: #1d2433;
+    --muted: #667085;
+    --line: #e3e8f0;
+    --accent: #2f6fde;
+    --error-bg: #fff1f0;
+    --error-text: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161f;
+      --card: #1b2130;
+      --text: #e8ecf4;
+      --muted: #98a2b3;
+      --line: #2c3446;
+      --accent: #7aa7ff;
+      --error-bg: #3a1d1d;
+      --error-text: #ffb4ab;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .place { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .now { display: flex; align-items: center; gap: 20px; }
+  .emoji { font-size: 72px; line-height: 1; }
+  .temp { font-size: 48px; font-weight: 700; line-height: 1.1; }
+  .desc { font-size: 20px; font-weight: 600; }
+  .details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    text-align: center;
+    font-size: 14px;
+  }
+  .details span { display: block; color: var(--muted); font-size: 12px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 16px; }
+  .loading { color: var(--muted); text-align: center; padding: 24px 0; }
+  .error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .error button {
+    margin-top: 10px;
+    padding: 6px 14px;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .api-box { font-size: 13px; }
+  .api-box h2 { font-size: 15px; margin: 0 0 8px; }
+  .api-box code {
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    word-break: break-all;
+    margin-bottom: 8px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🏠 우리 동네 날씨</h1>
+  <p class="place">경기도 구리시 교문동</p>
+
+  <section class="card" id="weather-card">
+    <p class="loading">날씨를 불러오는 중이에요… ⏳</p>
+  </section>
+
+  <section class="card api-box">
+    <h2>🔌 이 화면이 쓰는 API</h2>
+    <code id="api-url"></code>
+    <a id="api-link" href="#" target="_blank" rel="noopener">새 탭에서 원본 JSON 보기 ↗</a>
+    <p class="meta">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a></p>
+  </section>
+</main>
+
+<script>
+  // 🔌 API 주소는 여기 한 곳에만 있어요. latitude(위도)·longitude(경도)를 바꾸면 다른 동네 날씨가 와요.
+  const API = {
+    weather: "https://api.open-meteo.com/v1/forecast?latitude=37.5943&longitude=127.1296&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&timezone=Asia%2FSeoul", // 🔌 Open-Meteo 날씨 예보 (구리시 교문동)
+  };
+
+  // 날씨 코드(WMO) → 한국어 + 이모지
+  const WEATHER_CODES = {
+    0: ["맑음", "☀️"],
+    1: ["대체로 맑음", "🌤️"],
+    2: ["구름 조금", "⛅"],
+    3: ["흐림", "☁️"],
+    45: ["안개", "🌫️"],
+    48: ["서리 안개", "🌫️"],
+    51: ["약한 이슬비", "🌦️"],
+    53: ["이슬비", "🌦️"],
+    55: ["강한 이슬비", "🌧️"],
+    56: ["약한 어는 이슬비", "🌧️"],
+    57: ["강한 어는 이슬비", "🌧️"],
+    61: ["약한 비", "🌦️"],
+    63: ["비", "🌧️"],
+    65: ["강한 비", "🌧️"],
+    66: ["약한 어는 비", "🌧️"],
+    67: ["강한 어는 비", "🌧️"],
+    71: ["약한 눈", "🌨️"],
+    73: ["눈", "❄️"],
+    75: ["강한 눈", "❄️"],
+    77: ["싸락눈", "🌨️"],
+    80: ["약한 소나기", "🌦️"],
+    81: ["소나기", "🌧️"],
+    82: ["강한 소나기", "⛈️"],
+    85: ["약한 눈보라", "🌨️"],
+    86: ["강한 눈보라", "❄️"],
+    95: ["뇌우", "⛈️"],
+    96: ["뇌우와 약한 우박", "⛈️"],
+    99: ["뇌우와 강한 우박", "⛈️"],
+  };
+
+  function describe(code) {
+    return WEATHER_CODES[code] || [`알 수 없음 (코드 ${code})`, "❔"];
+  }
+
+  const card = document.getElementById("weather-card");
+  document.getElementById("api-url").textContent = API.weather;
+  document.getElementById("api-link").href = API.weather;
+
+  async function loadWeather() {
+    card.innerHTML = '<p class="loading">날씨를 불러오는 중이에요… ⏳</p>';
+    try {
+      const res = await fetch(API.weather); // 🔌 API 호출
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const c = data.current;
+      const [text, emoji] = describe(c.weather_code);
+
+      card.innerHTML = `
+        <div class="now">
+          <div class="emoji">${emoji}</div>
+          <div>
+            <div class="temp">${Math.round(c.temperature_2m)}°C</div>
+            <div class="desc">${text}</div>
+          </div>
+        </div>
+        <div class="details">
+          <div><span>체감</span>${Math.round(c.apparent_temperature)}°C</div>
+          <div><span>습도</span>${c.relative_humidity_2m}%</div>
+          <div><span>바람</span>${c.wind_speed_10m} km/h</div>
+        </div>
+        <p class="meta">기준 시각: ${c.time.replace("T", " ")} (한국 시간)<br>
+        데이터 출처: Weather data by Open-Meteo.com</p>
+      `;
+    } catch (err) {
+      card.innerHTML = `
+        <div class="error">
+          <strong>😢 날씨를 불러오지 못했어요.</strong><br>
+          인터넷 연결을 확인하거나, 아래 🔌 주소가 맞는지 확인해 주세요.<br>
+          <small>(${err.message})</small><br>
+          <button type="button" onclick="loadWeather()">다시 시도</button>
+        </div>
+      `;
+    }
+  }
+
+  loadWeather();
+</script>
+</body>
+</html>

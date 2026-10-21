@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>원화 환율 계산기</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --text: #1d2433;
+    --muted: #667085;
+    --line: #e3e8f0;
+    --accent: #2f6fde;
+    --error-bg: #fff1f0;
+    --error-text: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161f;
+      --card: #1b2130;
+      --text: #e8ecf4;
+      --muted: #98a2b3;
+      --line: #2c3446;
+      --accent: #7aa7ff;
+      --error-bg: #3a1d1d;
+      --error-text: #ffb4ab;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .form { display: flex; gap: 8px; }
+  .form input, .form select {
+    font: inherit;
+    font-size: 18px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    min-width: 0;
+  }
+  .form input { flex: 1; }
+  .result { font-size: 36px; font-weight: 700; line-height: 1.2; margin-top: 20px; word-break: break-all; }
+  .rate { margin-top: 4px; font-size: 15px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 16px; }
+  .loading { color: var(--muted); padding: 16px 0 0; }
+  .error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+  }
+  .error button {
+    margin-top: 10px;
+    padding: 6px 14px;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .api-box { font-size: 13px; }
+  .api-box h2 { font-size: 15px; margin: 0 0 8px; }
+  .api-box code {
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    word-break: break-all;
+    margin-bottom: 8px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>💱 원화 환율 계산기</h1>
+  <p class="sub">금액을 넣고 통화를 고르면 원화(KRW)로 바꿔 보여 줘요.</p>
+
+  <section class="card">
+    <div class="form">
+      <input id="amount" type="number" inputmode="decimal" min="0" step="any" value="100" aria-label="금액">
+      <select id="currency" aria-label="통화">
+        <option value="USD">🇺🇸 USD 달러</option>
+        <option value="JPY">🇯🇵 JPY 엔</option>
+        <option value="EUR">🇪🇺 EUR 유로</option>
+        <option value="CNY">🇨🇳 CNY 위안</option>
+      </select>
+    </div>
+    <div id="rate-card">
+      <p class="loading">환율을 불러오는 중이에요… ⏳</p>
+    </div>
+  </section>
+
+  <section class="card api-box">
+    <h2>🔌 이 화면이 쓰는 API</h2>
+    <code id="api-url"></code>
+    <a id="api-link" href="#" target="_blank" rel="noopener">새 탭에서 원본 JSON 보기 ↗</a>
+    <p class="meta">환율 데이터: <a href="https://frankfurter.dev/" target="_blank" rel="noopener">Frankfurter</a> (유럽중앙은행 ECB 기준 환율)</p>
+  </section>
+</main>
+
+<script>
+  // 🔌 API 주소는 여기 한 곳에만 있어요. from=통화 를 바꾸면 다른 통화의 원화 환율이 와요.
+  const API = {
+    rate: "https://api.frankfurter.dev/v1/latest?to=KRW&from=", // 🔌 Frankfurter 최신 기준 환율 (뒤에 USD·JPY·EUR·CNY 를 붙여 불러요)
+  };
+
+  const amountInput = document.getElementById("amount");
+  const currencySelect = document.getElementById("currency");
+  const card = document.getElementById("rate-card");
+  let current = null; // { currency, rate, date }
+
+  function won(n) {
+    return Math.round(n).toLocaleString("ko-KR") + "원";
+  }
+
+  function render() {
+    if (!current) return;
+    const amount = Number(amountInput.value);
+    const amountText = amountInput.value === "" || isNaN(amount) ? "0" : amount.toLocaleString("ko-KR");
+    card.innerHTML = `
+      <div class="result">${won((amount || 0) * current.rate)}</div>
+      <div class="rate">${amountText} ${current.currency} → 원화<br>
+      1 ${current.currency} = ${current.rate.toLocaleString("ko-KR")}원</div>
+      <p class="meta">기준 날짜: ${current.date} (유럽중앙은행이 하루 한 번 발표하는 기준 환율이에요. 은행에서 실제로 바꿀 때의 금액과 달라요.)<br>
+      데이터 출처: Frankfurter · 유럽중앙은행(ECB)</p>
+    `;
+  }
+
+  async function loadRate() {
+    const currency = currencySelect.value;
+    const url = API.rate + currency;
+    document.getElementById("api-url").textContent = url;
+    document.getElementById("api-link").href = url;
+    current = null;
+    card.innerHTML = '<p class="loading">환율을 불러오는 중이에요… ⏳</p>';
+    try {
+      const res = await fetch(url); // 🔌 API 호출
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (currencySelect.value !== currency) return; // 기다리는 동안 다른 통화를 골랐으면 버려요
+      const rate = data.rates && data.rates.KRW;
+      if (typeof rate !== "number") throw new Error("응답에 KRW 환율이 없어요");
+      current = { currency, rate, date: data.date };
+      render();
+    } catch (err) {
+      if (currencySelect.value !== currency) return;
+      card.innerHTML = `
+        <div class="error">
+          <strong>😢 환율을 불러오지 못했어요.</strong><br>
+          인터넷 연결을 확인하거나, 아래 🔌 주소가 맞는지 확인해 주세요.<br>
+          <small>(${err.message})</small><br>
+          <button type="button" onclick="loadRate()">다시 시도</button>
+        </div>
+      `;
+    }
+  }
+
+  amountInput.addEventListener("input", render);
+  currencySelect.addEventListener("change", loadRate);
+  loadRate();
+</script>
+</body>
+</html>

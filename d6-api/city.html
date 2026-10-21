@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>도시 날씨와 미세먼지</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --text: #1d2433;
+    --muted: #667085;
+    --line: #e3e8f0;
+    --accent: #2f6fde;
+    --error-bg: #fff1f0;
+    --error-text: #b42318;
+    --good: #1a73e8;
+    --normal: #188038;
+    --bad: #e37400;
+    --worst: #d93025;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161f;
+      --card: #1b2130;
+      --text: #e8ecf4;
+      --muted: #98a2b3;
+      --line: #2c3446;
+      --accent: #7aa7ff;
+      --error-bg: #3a1d1d;
+      --error-text: #ffb4ab;
+      --good: #8ab4f8;
+      --normal: #81c995;
+      --bad: #fdd663;
+      --worst: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .form { display: flex; gap: 8px; }
+  .form input, .form button, select {
+    font: inherit;
+    font-size: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    min-width: 0;
+  }
+  .form input { flex: 1; }
+  .form button { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+  select { width: 100%; margin-top: 8px; font-size: 14px; }
+  .place-name { font-size: 20px; font-weight: 700; }
+  .now { display: flex; align-items: center; gap: 20px; }
+  .emoji { font-size: 56px; line-height: 1; }
+  .temp { font-size: 40px; font-weight: 700; line-height: 1.1; }
+  .desc { font-size: 17px; font-weight: 600; }
+  .air { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
+  .air span { display: block; color: var(--muted); font-size: 13px; }
+  .grade { font-size: 22px; font-weight: 700; }
+  .grade.good { color: var(--good); }
+  .grade.normal { color: var(--normal); }
+  .grade.bad { color: var(--bad); }
+  .grade.worst { color: var(--worst); }
+  .meta { color: var(--muted); font-size: 13px; margin: 16px 0 0; }
+  .loading, .idle { color: var(--muted); margin: 0; }
+  .error {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .error button {
+    margin-top: 10px;
+    padding: 6px 14px;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .api-box { font-size: 13px; }
+  .api-box h3 { font-size: 13px; margin: 12px 0 4px; }
+  .api-box code {
+    display: block;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    word-break: break-all;
+    margin-bottom: 4px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🌏 도시 날씨와 미세먼지</h1>
+  <p class="sub">도시 이름을 넣으면 그 도시의 기온과 미세먼지 등급(환경부 기준)을 보여 줘요.</p>
+
+  <section class="card">
+    <form class="form" id="search-form">
+      <input id="city" type="text" value="서울특별시" placeholder="예: 서울특별시, 부산광역시, 구리시, Tokyo" aria-label="도시 이름">
+      <button type="submit">찾기</button>
+    </form>
+    <p class="meta">💡 "부산"보다 "부산광역시"처럼 정식 이름을 넣으면 더 잘 찾아요.</p>
+  </section>
+
+  <section class="card">
+    <h2>📍 찾은 곳 <small>(1번 API)</small></h2>
+    <div id="place-card"><p class="idle">도시 이름을 넣고 찾기를 눌러 주세요.</p></div>
+  </section>
+
+  <section class="card">
+    <h2>🌡️ 기온 <small>(2번 API)</small></h2>
+    <div id="weather-card"><p class="idle">장소를 찾으면 불러와요.</p></div>
+  </section>
+
+  <section class="card">
+    <h2>😷 미세먼지 <small>(3번 API)</small></h2>
+    <div id="air-card"><p class="idle">장소를 찾으면 불러와요.</p></div>
+  </section>
+
+  <section class="card api-box">
+    <h2>🔌 이 화면이 쓰는 API</h2>
+    <h3>1번 · 도시 이름 → 위도·경도 (지오코딩)</h3>
+    <code id="url-geocoding">아직 부르지 않았어요</code>
+    <a id="link-geocoding" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
+    <h3>2번 · 위도·경도 → 기온 (날씨 예보)</h3>
+    <code id="url-weather">아직 부르지 않았어요</code>
+    <a id="link-weather" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
+    <h3>3번 · 위도·경도 → 미세먼지 (대기질)</h3>
+    <code id="url-air">아직 부르지 않았어요</code>
+    <a id="link-air" href="#" target="_blank" rel="noopener" hidden>새 탭에서 원본 JSON 보기 ↗</a>
+    <p class="meta">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a><br>
+    대기질: Open-Meteo 대기질 API (CAMS 유럽 대기질 예보 모델) · 장소 검색: GeoNames</p>
+  </section>
+</main>
+
+<script>
+  // 🔌 API 주소는 여기 한 곳에만 있어요. 2번·3번 주소 뒤에는 1번 응답의 latitude(위도)·longitude(경도)를 붙여요.
+  const API = {
+    geocoding: "https://geocoding-api.open-meteo.com/v1/search?count=10&language=ko&format=json&name=", // 🔌 1번 Open-Meteo 지오코딩 (뒤에 도시 이름을 붙여요)
+    weather: "https://api.open-meteo.com/v1/forecast?current=temperature_2m,apparent_temperature,weather_code&timezone=auto", // 🔌 2번 Open-Meteo 날씨 예보
+    air: "https://air-quality-api.open-meteo.com/v1/air-quality?current=pm10,pm2_5&timezone=auto", // 🔌 3번 Open-Meteo 대기질 (pm10, pm2_5)
+  };
+
+  // 날씨 코드(WMO) → 한국어 + 이모지
+  const WEATHER_CODES = {
+    0: ["맑음", "☀️"], 1: ["대체로 맑음", "🌤️"], 2: ["구름 조금", "⛅"], 3: ["흐림", "☁️"],
+    45: ["안개", "🌫️"], 48: ["서리 안개", "🌫️"],
+    51: ["약한 이슬비", "🌦️"], 53: ["이슬비", "🌦️"], 55: ["강한 이슬비", "🌧️"],
+    56: ["약한 어는 이슬비", "🌧️"], 57: ["강한 어는 이슬비", "🌧️"],
+    61: ["약한 비", "🌦️"], 63: ["비", "🌧️"], 65: ["강한 비", "🌧️"],
+    66: ["약한 어는 비", "🌧️"], 67: ["강한 어는 비", "🌧️"],
+    71: ["약한 눈", "🌨️"], 73: ["눈", "❄️"], 75: ["강한 눈", "❄️"], 77: ["싸락눈", "🌨️"],
+    80: ["약한 소나기", "🌦️"], 81: ["소나기", "🌧️"], 82: ["강한 소나기", "⛈️"],
+    85: ["약한 눈보라", "🌨️"], 86: ["강한 눈보라", "❄️"],
+    95: ["뇌우", "⛈️"], 96: ["뇌우와 약한 우박", "⛈️"], 99: ["뇌우와 강한 우박", "⛈️"],
+  };
+
+  // 환경부 미세먼지 예보 등급 (단위 ㎍/㎥). [이 값 이하면, 등급, 색 이름]
+  const PM10_GRADES = [[30, "좋음", "good"], [80, "보통", "normal"], [150, "나쁨", "bad"], [Infinity, "매우나쁨", "worst"]];
+  const PM25_GRADES = [[15, "좋음", "good"], [35, "보통", "normal"], [75, "나쁨", "bad"], [Infinity, "매우나쁨", "worst"]];
+
+  function grade(value, table) {
+    const v = Math.round(value);
+    return table.find(([max]) => v <= max);
+  }
+
+  function describe(code) {
+    return WEATHER_CODES[code] || [`알 수 없음 (코드 ${code})`, "❔"];
+  }
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  function showUrl(name, url) {
+    document.getElementById(`url-${name}`).textContent = url;
+    const link = document.getElementById(`link-${name}`);
+    link.href = url;
+    link.hidden = false;
+  }
+
+  function errorBox(title, err, retry) {
+    return `
+      <div class="error">
+        <strong>😢 ${title}</strong><br>
+        인터넷 연결을 확인하거나, 아래 🔌 주소가 맞는지 확인해 주세요.<br>
+        <small>(${esc(err.message)})</small><br>
+        <button type="button" onclick="${retry}">다시 시도</button>
+      </div>
+    `;
+  }
+
+  const placeCard = document.getElementById("place-card");
+  const weatherCard = document.getElementById("weather-card");
+  const airCard = document.getElementById("air-card");
+  let places = [];
+  let chosen = null;
+  let searchId = 0; // 새로 찾으면 늦게 도착한 옛날 응답은 버려요
+
+  function placeLabel(p) {
+    return [p.name, p.admin1 !== p.name ? p.admin1 : null, p.country].filter(Boolean).join(", ");
+  }
+
+  // 1번: 도시 이름 → 위도·경도
+  async function searchCity() {
+    const name = document.getElementById("city").value.trim();
+    if (!name) return;
+    const id = ++searchId;
+    const url = API.geocoding + encodeURIComponent(name);
+    showUrl("geocoding", url);
+    placeCard.innerHTML = '<p class="loading">장소를 찾는 중이에요… ⏳</p>';
+    weatherCard.innerHTML = '<p class="idle">장소를 찾으면 불러와요.</p>';
+    airCard.innerHTML = '<p class="idle">장소를 찾으면 불러와요.</p>';
+    try {
+      const res = await fetch(url); // 🔌 API 호출
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (id !== searchId) return;
+      places = data.results || [];
+      if (places.length === 0) {
+        placeCard.innerHTML = `<p class="idle">🔍 "${esc(name)}"(으)로 찾은 곳이 없어요. "구리시", "부산광역시"처럼 정식 이름이나 영어 이름으로 다시 넣어 보세요.</p>`;
+        return;
+      }
+      // 같은 이름이 여러 곳이면 인구가 가장 많은 곳을 먼저 골라요
+      let best = 0;
+      places.forEach((p, i) => { if ((p.population || 0) > (places[best].population || 0)) best = i; });
+      choosePlace(best);
+    } catch (err) {
+      if (id !== searchId) return;
+      placeCard.innerHTML = errorBox("장소를 찾지 못했어요.", err, "searchCity()");
+    }
+  }
+
+  function choosePlace(index) {
+    chosen = places[index];
+    const options = places.map((p, i) =>
+      `<option value="${i}" ${i === index ? "selected" : ""}>${esc(placeLabel(p))}</option>`).join("");
+    placeCard.innerHTML = `
+      <div class="place-name">${esc(placeLabel(chosen))}</div>
+      <p class="meta" style="margin-top:4px">위도 ${chosen.latitude} · 경도 ${chosen.longitude}<br>
+      ↳ 이 두 숫자를 2번·3번 주소에 넣어요.</p>
+      ${places.length > 1 ? `<select aria-label="다른 장소 고르기" onchange="choosePlace(Number(this.value))">
+        <option disabled>찾던 곳이 아니면 여기서 골라요</option>${options}</select>` : ""}
+    `;
+    // 2번과 3번은 따로 불러요. 하나가 실패해도 다른 카드는 보여요.
+    loadWeather();
+    loadAir();
+  }
+
+  function coords(p) {
+    return `&latitude=${p.latitude}&longitude=${p.longitude}`;
+  }
+
+  // 2번: 위도·경도 → 기온
+  async function loadWeather() {
+    const place = chosen;
+    const url = API.weather + coords(place);
+    showUrl("weather", url);
+    weatherCard.innerHTML = '<p class="loading">기온을 불러오는 중이에요… ⏳</p>';
+    try {
+      const res = await fetch(url); // 🔌 API 호출
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (place !== chosen) return;
+      const c = data.current;
+      const [text, emoji] = describe(c.weather_code);
+      weatherCard.innerHTML = `
+        <div class="now">
+          <div class="emoji">${emoji}</div>
+          <div>
+            <div class="temp">${Math.round(c.temperature_2m)}°C</div>
+            <div class="desc">${text} · 체감 ${Math.round(c.apparent_temperature)}°C</div>
+          </div>
+        </div>
+        <p class="meta">기준 시각: ${esc(c.time.replace("T", " "))} (그 도시 시간)<br>
+        데이터 출처: Weather data by Open-Meteo.com</p>
+      `;
+    } catch (err) {
+      if (place !== chosen) return;
+      weatherCard.innerHTML = errorBox("기온을 불러오지 못했어요.", err, "loadWeather()");
+    }
+  }
+
+  // 3번: 위도·경도 → 미세먼지
+  async function loadAir() {
+    const place = chosen;
+    const url = API.air + coords(place);
+    showUrl("air", url);
+    airCard.innerHTML = '<p class="loading">미세먼지를 불러오는 중이에요… ⏳</p>';
+    try {
+      const res = await fetch(url); // 🔌 API 호출
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (place !== chosen) return;
+      const c = data.current;
+      if (typeof c.pm10 !== "number" || typeof c.pm2_5 !== "number") throw new Error("이 장소의 미세먼지 값이 없어요");
+      const [, g10, cls10] = grade(c.pm10, PM10_GRADES);
+      const [, g25, cls25] = grade(c.pm2_5, PM25_GRADES);
+      airCard.innerHTML = `
+        <div class="air">
+          <div><span>미세먼지 PM10</span><div class="grade ${cls10}">${g10}</div>${Math.round(c.pm10)} ㎍/㎥</div>
+          <div><span>초미세먼지 PM2.5</span><div class="grade ${cls25}">${g25}</div>${Math.round(c.pm2_5)} ㎍/㎥</div>
+        </div>
+        <p class="meta">기준 시각: ${esc(c.time.replace("T", " "))} (그 도시 시간)<br>
+        등급: 환경부 기준 (PM10 좋음 0~30 · 보통 31~80 · 나쁨 81~150 · 매우나쁨 151 이상 /
+        PM2.5 좋음 0~15 · 보통 16~35 · 나쁨 36~75 · 매우나쁨 76 이상)<br>
+        ⚠️ 측정소에서 잰 값이 아니라 예보 모델이 계산한 1시간 값이에요. 에어코리아 측정값과 다를 수 있어요.<br>
+        데이터 출처: Open-Meteo 대기질 API (CAMS)</p>
+      `;
+    } catch (err) {
+      if (place !== chosen) return;
+      airCard.innerHTML = errorBox("미세먼지를 불러오지 못했어요.", err, "loadAir()");
+    }
+  }
+
+  document.getElementById("search-form").addEventListener("submit", e => {
+    e.preventDefault();
+    searchCity();
+  });
+  searchCity();
+</script>
+</body>
+</html>
