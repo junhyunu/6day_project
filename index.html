@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D6 무료 API 화면 모음</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --text: #1d2433;
+    --muted: #667085;
+    --line: #e3e8f0;
+    --accent: #2f6fde;
+    --warn: #b54708;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161f;
+      --card: #1b2130;
+      --text: #e8ecf4;
+      --muted: #98a2b3;
+      --line: #2c3446;
+      --accent: #7aa7ff;
+      --warn: #fdb022;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .list { display: grid; gap: 12px; }
+  .item {
+    display: flex; gap: 14px; align-items: center;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 18px;
+    color: inherit; text-decoration: none;
+  }
+  .item:hover { border-color: var(--accent); }
+  .item:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .emoji { font-size: 32px; line-height: 1; }
+  .name { font-weight: 700; }
+  .stars { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 4px; }
+  .desc { color: var(--muted); font-size: 13px; }
+  .note { color: var(--warn); font-size: 12px; margin-top: 2px; }
+  .meta { color: var(--muted); font-size: 13px; margin: 20px 0 0; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🗂️ D6 무료 API 화면 모음</h1>
+  <p class="sub">"무료 API로 나만의 서비스 만들기" 수업에서 만든 화면이에요. 눌러서 열어 보세요.</p>
+
+  <nav class="list">
+    <a class="item" href="d6-api/weather.html">
+      <span class="emoji">🏠</span>
+      <span><span class="name">우리 동네 날씨<span class="stars">★</span></span><br>
+      <span class="desc">구리시 교문동 기온·날씨 · Open-Meteo</span></span>
+    </a>
+    <a class="item" href="d6-api/rate.html">
+      <span class="emoji">💱</span>
+      <span><span class="name">환율 계산기<span class="stars">★</span></span><br>
+      <span class="desc">달러·엔·유로·위안 → 원화 · Frankfurter</span></span>
+    </a>
+    <a class="item" href="d6-api/city.html">
+      <span class="emoji">🌏</span>
+      <span><span class="name">도시 날씨와 미세먼지<span class="stars">★★</span></span><br>
+      <span class="desc">도시 검색 → 기온·미세먼지 등급(환경부 기준) · Open-Meteo</span></span>
+    </a>
+    <a class="item" href="d6-api/morning.html">
+      <span class="emoji">☀️</span>
+      <span><span class="name">나의 아침 화면<span class="stars">★★★</span></span><br>
+      <span class="desc">날씨·미세먼지·환율·공휴일 D-day·강아지 카드 4장</span></span>
+    </a>
+    <a class="item" href="d6-api/pokedex.html">
+      <span class="emoji">🎮</span>
+      <span><span class="name">도감보이 포켓몬 도감</span><br>
+      <span class="desc">게임보이 모양 한국어 도감 · PokeAPI</span></span>
+    </a>
+    <a class="item" id="bus-link" href="d6-api/businformation.html">
+      <span class="emoji">🚌</span>
+      <span><span class="name">서울 버스 도착 정보</span><br>
+      <span class="desc">정류소·버스 번호로 도착 예정 · 서울시 버스 API(키는 서버에 보관)</span>
+      <span class="note" id="bus-note" hidden><br>↗ 서버가 필요해서 Vercel 주소로 열어요.</span></span>
+    </a>
+  </nav>
+
+  <p class="meta">코드: <a href="https://github.com/junhyunu/6day_project" target="_blank" rel="noopener">github.com/junhyunu/6day_project</a></p>
+</main>
+
+<script>
+  // 버스 화면은 Vercel 서버 함수가 있어야 해요. GitHub Pages나 더블클릭으로 열었으면 Vercel 주소로 보내요.
+  if (location.protocol === "file:" || location.hostname.endsWith("github.io")) {
+    document.getElementById("bus-link").href = "https://6day-project.vercel.app/d6-api/businformation.html";
+    document.getElementById("bus-note").hidden = false;
+  }
+</script>
+</body>
+</html>
